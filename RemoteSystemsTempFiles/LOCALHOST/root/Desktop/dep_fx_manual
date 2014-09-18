@@ -1,0 +1,205 @@
+/**
+ * @ingroup cppref_prd_func
+ * <b>Purpose:</b> A DepthGenerator node generates depth maps. Each pixel value of
+ * a depth map represents a distance from the sensor's plane in millimeters.
+ *
+ * <b>Usage:</b> Instantiate the class and call Create() to create a DepthGenerator
+ * node.
+ *
+ * This class is at the first level of classes in the OpenNI class hierarchy that is
+ * typically instantiated to create an actual node. (Examples of other classes at the
+ * first level are @ref xn::ImageGenerator and @ref xn::SceneAnalyzer).
+ *
+ * <b>Data output:</b> Depth maps and associated configuration data. Access via the node's
+ * @ref xn::DepthMetaData object.
+ *
+ * <b>Overview:</b>
+ *
+ * A DepthGenerator node generates a depth map as an array of pixels, where each pixel
+ * is a depth value representing a distance from the sensor's plane in millimeters. This is
+ * the Z-coordinate of the X-Y-Z coordinate of each user pixel. A smaller depth value
+ * indicates a scene point that is <i>closer</i> to the hardware sensor device  ; and
+ * a larger depth value indicates a scene point that is a <i>further away</i> from the
+ * sensor. A zero depth value indicates that the DepthGenerator node did not succeed
+ * in obtaining a valid depth reading.
+ *
+ * Typically, the process of generating 3D data begins by using a sensor device that
+ * produces raw output data. Dedicated middleware is then used to process this raw output,
+ * and produce a higher-level output, which can then be understood and used by the application.
+ *
+ * In a typical OpenNI production graph, a DepthGenerator node takes input directly
+ * from a sensor device and generates a depth map. Other generator nodes further along
+ * the production graph (dependant on the DepthGenerator node) take input from the DepthGenerator
+ * node's output. However, alternative dependency configurations are also possible.
+ *
+ * The DepthGenerator node's data and associated configuration are accessed through
+ * its @ref glos_frame_object "frame object" (i.e., its @ref xn::DepthMetaData object).
+ *
+ * Summary of Main Features:
+ * - Depth map: Provides the data of the depth map
+ * - Sensor device's maximum depth: Provides the maximum distance available for this
+ *   depth generator
+ * - Field of View: Provides the sensor's maximum horizontal and vertical angles
+ * - User Position capability (optional)
+ */
+class DepthGenerator : public MapGenerator
+{
+public:
+	/**
+	 * Ctor
+	 *
+	 * @param [in]	hNode	Node handle
+	 */
+	inline DepthGenerator(XnNodeHandle hNode = NULL) : MapGenerator(hNode) {}
+	inline DepthGenerator(const NodeWrapper& other) : MapGenerator(other) {}
+
+	/**
+	 * @brief Creates a DepthGenerator node from available @ref node_alternative "production node alternatives".
+	 *
+	 * <b>Remarks:</b>
+	 *
+	 * For full details and usage, see @ref create_method.
+	 */
+	inline XnStatus Create(Context& context, Query* pQuery = NULL, EnumerationErrors* pErrors = NULL);
+
+	/**
+	 * @brief Gets the depth generator node's latest @ref glos_frame_object "frame object", saving
+	 * it in the @ref xn::DepthMetaData object. This @ref glos_frame_object "frame object" is a
+	 * snapshot of the generated depth map data and its associated configuration information at a
+	 * certain point in time. This saved @ref glos_frame_object "frame object" provides fast
+	 * and easy access to the depth generator node's data and configuration information.
+	 *
+	 * @param [out]	metaData	Structure to be filled with the frame object.
+	 *
+	 * <b>Remarks:</b>
+	 *
+	 * This method is central in the use of the DepthGenerator node. Once the DepthGenerator
+	 * node is generating data, after each @ref conc_updating_data "'Update Data'" call,
+	 * the application calls this method to get the node's frame object, which contains
+	 * the data and all its associated properties.
+	 */
+	inline void GetMetaData(DepthMetaData& metaData) const
+	{
+		xnGetDepthMetaData(GetHandle(), metaData.GetUnderlying());
+	}
+
+	/**
+	 * @copybrief xnGetDepthMap
+	 * For full details and usage, see @ref xnGetDepthMap
+	 */
+	inline const XnDepthPixel* GetDepthMap() const
+	{
+		return xnGetDepthMap(GetHandle());
+	}
+
+	/**
+	 * @brief Gets the maximum depth value that the DepthGenerator node can generate.
+	 * The maximum depth value is a hardware specification of the sensor.
+	 *
+	 * <b>Remarks:</b>
+	 *
+	 * A typical maximum depth supports up to 10 meters of depth. Units are in millimeters,
+	 * so the maximum depth value for 10 meters of depth would range from 0 to 10,000.
+	 */
+	inline XnDepthPixel GetDeviceMaxDepth() const
+	{
+		return xnGetDeviceMaxDepth(GetHandle());
+	}
+
+	/**
+	 * @brief Gets the dimensions of the field of view (FOV) of the hardware sensor.
+	 *
+	 * @param [out]	FOV  	A struct to be filled with the field of view of the hardware sensor.
+	 *
+	 * <b>Remarks:</b>
+	 *
+	 * This method gets the dimensions of the field of view in radians. Radians are
+	 * used for the output form since they are a spherical measurement and the FOV is
+	 * defined in terms of the angle of width and height that the sensor sees, e.g.,
+	 * 0.524 radians (30 degrees) above and below, and 1.047 radians (60 degrees) left
+	 * and right.
+	 *
+	 * This method is useful for developers building algorithms to convert between real
+	 * world and productive coordinate systems. Although OpenNI offers its own functionality
+	 * for converting real-world and productive coordinate systems, some developers
+	 * may wish to build their own conversion functions for reasons of optimization.
+	 */
+	inline XnStatus GetFieldOfView(XnFieldOfView& FOV) const
+	{
+		return xnGetDepthFieldOfView(GetHandle(), &FOV);
+	}
+
+	/**
+	 * @brief Registers an event handler for the 'Field-Of-View Change' event.
+	 *
+	 * @param [in]	handler  	Callback function to be invoked when the event is raised.
+	 * @param [in]	pCookie  	User's cookie, to be delivered to the callback.
+	 * @param [out]	hCallback 	Handle to the callback to be used for unregistering it.
+	 *
+	 * For full details and usage of the parameters, see @ref reg_to_events.
+	 */
+	inline XnStatus RegisterToFieldOfViewChange(StateChangedHandler handler, void* pCookie, XnCallbackHandle& hCallback)
+	{
+		return _RegisterToStateChange(xnRegisterToDepthFieldOfViewChange, GetHandle(), handler, pCookie, hCallback);
+	}
+
+	/**
+	 * @brief Unregisters the event handler for the 'Field-Of-View Change' event.
+	 *
+	 * @param [in]	hCallback  Handle received from registration.
+	 *
+	 * For full details and usage of the parameter, see @ref unreg_from_events .
+	 */
+	inline void UnregisterFromFieldOfViewChange(XnCallbackHandle hCallback)
+	{
+		_UnregisterFromStateChange(xnUnregisterFromDepthFieldOfViewChange, GetHandle(), hCallback);
+	}
+
+	/**
+	 * @brief Converts a list of points from projective coordinates to real world coordinates.
+	 *
+	 * @param [in]		nCount		Number of points to convert.
+	 * @param [in]		aProjective	Array of projective point coordinates.
+	 * @param [in,out]	aRealWorld	Array to be filled with real-world point coordinates.
+	 *
+	 * See @ref conc_coord for futher information.
+	 */
+	inline XnStatus ConvertProjectiveToRealWorld(XnUInt32 nCount, const XnPoint3D aProjective[], XnPoint3D aRealWorld[]) const
+	{
+		return xnConvertProjectiveToRealWorld(GetHandle(), nCount, aProjective, aRealWorld);
+	}
+
+	/**
+	 * @brief Converts a list of points from real world coordinates to projective coordinates.
+	 *
+	 * @param [in]		nCount  	Number of points to convert.
+	 * @param [in]		aRealWorld  Array of projective point coordinates.
+	 * @param [in,out]	aProjective Array to be filled with real-world point coordinates.
+	 *
+	 * See @ref conc_coord for futher information.
+	 */
+	inline XnStatus ConvertRealWorldToProjective(XnUInt32 nCount, const XnPoint3D aRealWorld[], XnPoint3D aProjective[]) const
+	{
+		return xnConvertRealWorldToProjective(GetHandle(), nCount, aRealWorld, aProjective);
+	}
+
+	/**
+	 * Gets an @ref UserPositionCapability object for accessing User Position functionality.
+	 * It is the application responsibility to check first if @ref XN_CAPABILITY_USER_POSITION
+	 * is supported by calling @ref IsCapabilitySupported().
+	 */
+	inline const UserPositionCapability GetUserPositionCap() const
+	{
+		return UserPositionCapability(GetHandle());
+	}
+
+	/**
+	 * Gets an @ref UserPositionCapability object for accessing User Position functionality.
+	 * It is the application responsibility to check first if @ref XN_CAPABILITY_USER_POSITION
+	 * is supported by calling @ref IsCapabilitySupported().
+	 */
+	inline UserPositionCapability GetUserPositionCap()
+	{
+		return UserPositionCapability(GetHandle());
+	}
+};
